@@ -3,6 +3,7 @@
 namespace BookStack\Console\Commands;
 
 use BookStack\Auth\Access\Ldap;
+use BookStack\Auth\Permissions\RolePermission;
 use BookStack\Auth\Role;
 use BookStack\Auth\User;
 use Illuminate\Console\Command;
@@ -69,6 +70,8 @@ class LdapProvision extends Command
     protected $softDelete;
     protected $createEmptyGroups;
 
+    protected $adminGroupName;
+
     protected const NO_PASSWORD_DELETED = 'no password (deleted)';
 
     /**
@@ -95,6 +98,7 @@ class LdapProvision extends Command
         } else {
             $this->groupsDescriptionAttr = strtolower(env('LDAP_PROVISION_GROUPS_DESCRIPTION_ATTR'));
         }
+        $this->adminGroupName = env('LDAP_PROVISION_ADMIN_GROUP_NAME');
 
         $this->allowDisasters = ! boolval(env('LDAP_PROVISION_ALLOW_DISASTERS', true));
         $this->softDelete = boolval(env('LDAP_PROVISION_SOFT_DELETE', true));
@@ -160,6 +164,11 @@ class LdapProvision extends Command
         // Remove deleted Groups
         if ($this->allowDisasters || count($dnToGroup) > 0) {
             $this->deleteGroups($dnToGroup);
+        }
+
+        // Set permissions
+        if (isset($this->adminGroupName) && strlen($this->adminGroupName) > 0) {
+            $this->setAdminPermissions($dnToGroup);
         }
     }
 
@@ -342,6 +351,21 @@ class LdapProvision extends Command
 
             if (!isset($externalIds[$group->external_auth_id])) {
                 $group->delete();
+            }
+        }
+    }
+
+    protected function setAdminPermissions(array $dnToGroup)
+    {
+        foreach ($dnToGroup as $group) {
+            /** @var Role $group */
+            if ($group->display_name === $this->adminGroupName) {
+                $permissions = ['settings-manage', 'users-manage', 'user-roles-manage'];
+                $ids = RolePermission::whereIn('name', $permissions)->pluck('id');
+                foreach ($ids as $id) {
+                    $group->permissions()->syncWithoutDetaching($id);
+                }
+                break;
             }
         }
     }
