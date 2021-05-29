@@ -147,7 +147,7 @@ class LdapProvision extends Command
 
         // Get data from LDAP
         $users = $this->ldap->getUsersForProvisioning($usersBaseDn, $usersFilter, $requiredUserAttributes);
-        $groups = $this->ldap->getGroupsForProvisioning($groupsBaseDn, $groupsFilter, ['member', $this->groupsExternalIdAttr, $this->groupsNameAttr]);
+        $groups = $this->ldap->getGroupsForProvisioning($groupsBaseDn, $groupsFilter, ['member', $this->groupsExternalIdAttr, $this->groupsNameAttr, $this->groupsDescriptionAttr]);
 
         // Add users
         $users = $this->filterUsers($users, $requiredUserAttributes, $excludedUsersAttr, $excludedUsers);
