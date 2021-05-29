@@ -148,25 +148,18 @@ class LdapProvision extends Command
         // Add users
         $users = $this->filterUsers($users, $requiredUserAttributes, $excludedUsersAttr, $excludedUsers);
         $dnToUser = $this->parseUsers($users);
-        $externalIds = [];
-        foreach ($dnToUser as $user) {
-            /** @var User $user */
-            $externalIds[] = $user->external_auth_id;
-        }
-        $externalIds = array_combine($externalIds, $externalIds);
 
         // Add groups
-        $externalIdsGroups = $this->parseGroups($groups, $dnToUser);
-        $externalIdsGroups = array_combine($externalIdsGroups, $externalIdsGroups);
+        $dnToGroup = $this->parseGroups($groups, $dnToUser);
 
         // Remove deleted users
-        if ($this->allowDisasters || count($externalIds) > 0) {
-            $this->deleteUsers($externalIds);
+        if ($this->allowDisasters || count($dnToUser) > 0) {
+            $this->deleteUsers($dnToUser);
         }
 
         // Remove deleted Groups
-        if ($this->allowDisasters || count($externalIdsGroups) > 0) {
-            $this->deleteGroups($externalIdsGroups);
+        if ($this->allowDisasters || count($dnToGroup) > 0) {
+            $this->deleteGroups($dnToGroup);
         }
     }
 
@@ -195,7 +188,7 @@ class LdapProvision extends Command
 
     private function parseGroups(array $groups, array $dnToUser): array
     {
-        $externalIds = [];
+        $allRoles = [];
         $userDnToGroupId = [];
         foreach ($groups as $group) {
             if (isset($group[$this->groupsExternalIdAttr][0]) && isset($group[$this->groupsNameAttr][0])) {
@@ -217,7 +210,6 @@ class LdapProvision extends Command
                 }
 
                 $role = Role::where('external_auth_id', '=', $external_id)->first();
-                $externalIds[] = $external_id;
 
                 if ($role === null) {
                     // Role doesn't exist
@@ -243,6 +235,7 @@ class LdapProvision extends Command
                         $role->save();
                     }
                 }
+                $allRoles[$external_id] = $role;
             }
         }
 
@@ -253,7 +246,7 @@ class LdapProvision extends Command
             }
         }
 
-        return $externalIds;
+        return $allRoles;
     }
 
     protected function parseUsers(array $users): array
