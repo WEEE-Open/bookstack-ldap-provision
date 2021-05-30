@@ -71,6 +71,7 @@ class LdapProvision extends Command
 
     protected $adminGroupName;
     protected $adminGroupPermissions;
+    protected $allUsersRoles;
 
     protected const NO_PASSWORD_DELETED = 'no password (deleted)';
 
@@ -102,6 +103,10 @@ class LdapProvision extends Command
         $this->adminGroupPermissions = env('LDAP_PROVISION_ADMIN_GROUP_PERMISSIONS', ['settings-manage', 'users-manage', 'user-roles-manage']);
         if (is_string($this->adminGroupPermissions)) {
             $this->adminGroupPermissions = explode(',', $this->adminGroupPermissions);
+        }
+        $this->allUsersRoles = env('LDAP_PROVISION_COMMON_ROLES', []);
+        if (is_string($this->allUsersRoles)) {
+            $this->allUsersRoles = explode(',', $this->allUsersRoles);
         }
 
         $this->allowDisasters = ! boolval(env('LDAP_PROVISION_ALLOW_DISASTERS', true));
@@ -168,6 +173,11 @@ class LdapProvision extends Command
         // Remove deleted Groups
         if ($this->allowDisasters || count($eidToGroup) > 0) {
             $this->deleteGroups($eidToGroup);
+        }
+
+        // Add users to common roles
+        if (isset($this->allUsersRoles)) {
+            $this->addUsersToCommonRoles($dnToUser);
         }
 
         // Set permissions
@@ -388,7 +398,24 @@ class LdapProvision extends Command
             }
         }
         if (!$found) {
-            Log::warning("Admin group '{$this->adminGroupName}' was not found");
+            Log::warning("Admin group '$this->adminGroupName' was not found");
+        }
+    }
+
+    private function addUsersToCommonRoles(array $dnToUser)
+    {
+        $roleIds = [];
+        foreach ($this->allUsersRoles as $roleName) {
+            $role = Role::getRole($roleName);
+            if ($role) {
+                $roleIds[] = $role->id;
+            } else {
+                Log::warning("Common role '$roleName' was not found");
+            }
+        }
+        foreach ($dnToUser as $user) {
+            /** @var User $user */
+            $user->roles()->syncWithoutDetaching($roleIds);
         }
     }
 }
