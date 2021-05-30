@@ -2,7 +2,6 @@
 
 namespace BookStack\Console\Commands;
 
-use BookStack\Auth\Access\Ldap;
 use BookStack\Auth\Permissions\RolePermission;
 use BookStack\Auth\Role;
 use BookStack\Auth\User;
@@ -83,7 +82,7 @@ class LdapProvision extends Command
         parent::__construct();
 
         $this->config = config('services.ldap');
-        $this->ldap = new LdapProvisionService(new Ldap());
+        $this->ldap = app()->make(LdapProvisionService::class);
 
         $this->externalIdAttr = strtolower(env('LDAP_PROVISION_EXTERNAL_ID_ATTR'))
             ?? dd('LDAP_PROVISION_EXTERNAL_ID_ATTR not set');
