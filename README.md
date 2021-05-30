@@ -8,7 +8,7 @@ This is particularly useful in conjunction with an SSO setup (either SAML2 or LD
 
 1. Drop LdapProvision.php into the `app/Console/Commands` directory in your BookStack Installation
 2. Add env vars definitions to .env (see below)
-3. `app php artisan bookstack:ldap-provision`
+3. `php artisan bookstack:ldap-provision`
 4. Make a cron job, systemd timer or something to run that command every e.g. 15 minutes.
 
 With the official docker-compose you can use `docker-compose run app php artisan bookstack:ldap-provision`.
