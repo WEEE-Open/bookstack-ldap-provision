@@ -154,7 +154,7 @@ class LdapProvision extends Command
         $dnToUser = $this->parseUsers($users);
 
         // Add groups
-        $dnToGroup = $this->parseGroups($groups, $dnToUser);
+        $eidToGroup = $this->parseGroups($groups, $dnToUser);
 
         // Remove deleted users
         if ($this->allowDisasters || count($dnToUser) > 0) {
@@ -162,14 +162,16 @@ class LdapProvision extends Command
         }
 
         // Remove deleted Groups
-        if ($this->allowDisasters || count($dnToGroup) > 0) {
-            $this->deleteGroups($dnToGroup);
+        if ($this->allowDisasters || count($eidToGroup) > 0) {
+            $this->deleteGroups($eidToGroup);
         }
 
         // Set permissions
         if (isset($this->adminGroupName) && strlen($this->adminGroupName) > 0) {
-            $this->setAdminPermissions($dnToGroup);
+            $this->setAdminPermissions($eidToGroup);
         }
+
+        // TODO: remove users from synced groups if they are not part of them or remove users-manage
     }
 
     protected function filterUsers(array $users, array $requiredAttributes, string $excludedMatchAttribute = null, array $excludedUsersAttributes = []): array
@@ -197,7 +199,7 @@ class LdapProvision extends Command
 
     private function parseGroups(array $groups, array $dnToUser): array
     {
-        $allRoles = [];
+        $eidToRole = [];
         $userDnToGroupId = [];
         foreach ($groups as $group) {
             if (isset($group[$this->groupsExternalIdAttr][0]) && isset($group[$this->groupsNameAttr][0])) {
@@ -244,7 +246,7 @@ class LdapProvision extends Command
                         $role->save();
                     }
                 }
-                $allRoles[$external_id] = $role;
+                $eidToRole[$external_id] = $role;
             }
         }
 
@@ -255,7 +257,7 @@ class LdapProvision extends Command
             }
         }
 
-        return $allRoles;
+        return $eidToRole;
     }
 
     protected function parseUsers(array $users): array
@@ -310,8 +312,17 @@ class LdapProvision extends Command
         return $dnToUser;
     }
 
-    protected function deleteUsers(array $externalIds): void
+    protected function deleteUsers(array $dnToUser): void
     {
+        $externalIds = [];
+        foreach ($dnToUser as $user) {
+            /** @var User $user */
+            if (strlen($user->external_auth_id) <= 0) {
+                continue;
+            }
+            $externalIds[$user->external_auth_id] = true;
+        }
+
         $allUsers = User::whereNotNull('external_auth_id')->get();
         $i = 0;
         foreach ($allUsers as $user) {
@@ -344,7 +355,7 @@ class LdapProvision extends Command
         }
     }
 
-    protected function deleteGroups(array $externalIds): void
+    protected function deleteGroups(array $eidToGroup): void
     {
         $allGroups = Role::whereNotNull('external_auth_id')->get();
         foreach ($allGroups as $group) {
@@ -353,15 +364,15 @@ class LdapProvision extends Command
                 continue;
             }
 
-            if (!isset($externalIds[$group->external_auth_id])) {
+            if (!isset($eidToGroup[$group->external_auth_id])) {
                 $group->delete();
             }
         }
     }
 
-    protected function setAdminPermissions(array $dnToGroup)
+    protected function setAdminPermissions(array $eidToGroup)
     {
-        foreach ($dnToGroup as $group) {
+        foreach ($eidToGroup as $group) {
             /** @var Role $group */
             if ($group->display_name === $this->adminGroupName) {
                 $permissions = ['settings-manage', 'users-manage', 'user-roles-manage'];
