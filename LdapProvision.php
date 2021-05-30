@@ -71,6 +71,7 @@ class LdapProvision extends Command
     protected $createEmptyGroups;
 
     protected $adminGroupName;
+    protected $adminGroupPermissions;
 
     protected const NO_PASSWORD_DELETED = 'no password (deleted)';
 
@@ -99,6 +100,10 @@ class LdapProvision extends Command
             $this->groupsDescriptionAttr = strtolower(env('LDAP_PROVISION_GROUPS_DESCRIPTION_ATTR'));
         }
         $this->adminGroupName = env('LDAP_PROVISION_ADMIN_GROUP_NAME');
+        $this->adminGroupPermissions = env('LDAP_PROVISION_ADMIN_GROUP_PERMISSIONS', ['settings-manage', 'users-manage', 'user-roles-manage']);
+        if (is_string($this->adminGroupPermissions)) {
+            $this->adminGroupPermissions = explode(',', $this->adminGroupPermissions);
+        }
 
         $this->allowDisasters = ! boolval(env('LDAP_PROVISION_ALLOW_DISASTERS', true));
         $this->softDelete = boolval(env('LDAP_PROVISION_SOFT_DELETE', true));
@@ -167,11 +172,9 @@ class LdapProvision extends Command
         }
 
         // Set permissions
-        if (isset($this->adminGroupName) && strlen($this->adminGroupName) > 0) {
+        if (isset($this->adminGroupName) && strlen($this->adminGroupName) > 0 && count($this->adminGroupPermissions) > 0) {
             $this->setAdminPermissions($eidToGroup);
         }
-
-        // TODO: remove users from synced groups if they are not part of them or remove users-manage
     }
 
     protected function filterUsers(array $users, array $requiredAttributes, string $excludedMatchAttribute = null, array $excludedUsersAttributes = []): array
@@ -372,6 +375,7 @@ class LdapProvision extends Command
 
     protected function setAdminPermissions(array $eidToGroup)
     {
+        $found = false;
         foreach ($eidToGroup as $group) {
             /** @var Role $group */
             if ($group->display_name === $this->adminGroupName) {
@@ -380,8 +384,12 @@ class LdapProvision extends Command
                 foreach ($ids as $id) {
                     $group->permissions()->syncWithoutDetaching($id);
                 }
+                $found = true;
                 break;
             }
+        }
+        if (!$found) {
+            Log::warning("Admin group '{$this->adminGroupName}' was not found");
         }
     }
 }
