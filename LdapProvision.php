@@ -292,7 +292,11 @@ class LdapProvision extends Command
                     $user->email = $ldapUser[$this->emailAttr][0];
                     $changed = true;
                 }
-                if (!$user->email_confirmed) {
+                if ($user->password !== 'no password') {
+                    $user->password = 'no password';
+                    $changed = true;
+                }
+                if ($user->email_confirmed) {
                     $user->email_confirmed = true;
                     $changed = true;
                 }
