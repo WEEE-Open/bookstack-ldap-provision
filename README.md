@@ -1,5 +1,7 @@
 # BookStack LDAP provisioning command
 
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://GitHub.com/Naereen/StrapDown.js/graphs/commit-activity)
+
 Provision user accounts in BookStack from a LDAP server.
 
 This is particularly useful in conjunction with an SSO setup (either SAML2 or LDAP), so the user database is kept in sync with the LDAP database at all times: users exist even if they haven't logged in for the first time, names and emails are updated when they change and deleted accounts are deleted on BookStack too.
